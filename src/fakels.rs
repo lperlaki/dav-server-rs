@@ -14,11 +14,13 @@
 //! `FakeLs` implements such a fake locksystem.
 use std::time::{Duration, SystemTime};
 
+use futures_util::future::BoxFuture;
+use futures_util::FutureExt;
 use uuid::Uuid;
 use xmltree::Element;
 
 use crate::davpath::DavPath;
-use crate::ls::*;
+use crate::{async_stream, ls::*};
 
 /// Fake locksystem implementation.
 #[derive(Debug, Clone)]
@@ -53,7 +55,7 @@ impl DavLockSystem for FakeLs {
         timeout: Option<Duration>,
         shared: bool,
         deep: bool,
-    ) -> Result<DavLock, DavLock> {
+    ) -> BoxFuture<Result<DavLock, DavLock>> {
         let timeout = tm_limit(timeout);
         let timeout_at = SystemTime::now() + timeout;
 
@@ -72,11 +74,11 @@ impl DavLockSystem for FakeLs {
             deep,
         };
         debug!("lock {} created", &lock.token);
-        Ok(lock)
+        async { Ok(lock) }.boxed()
     }
 
-    fn unlock(&self, _path: &DavPath, _token: &str) -> Result<(), ()> {
-        Ok(())
+    fn unlock(&self, _path: &DavPath, _token: &str) -> BoxFuture<Result<(), ()>> {
+        async { Ok(()) }.boxed()
     }
 
     fn refresh(
@@ -84,7 +86,7 @@ impl DavLockSystem for FakeLs {
         path: &DavPath,
         token: &str,
         timeout: Option<Duration>,
-    ) -> Result<DavLock, ()> {
+    ) -> BoxFuture<Result<DavLock, ()>> {
         debug!("refresh lock {}", token);
         let v: Vec<&str> = token.split('/').collect();
         let deep = v.len() > 1 && v[1] == "I";
@@ -103,7 +105,7 @@ impl DavLockSystem for FakeLs {
             shared,
             deep,
         };
-        Ok(lock)
+        async { Ok(lock) }.boxed()
     }
 
     fn check(
@@ -113,15 +115,15 @@ impl DavLockSystem for FakeLs {
         _ignore_principal: bool,
         _deep: bool,
         _submitted_tokens: Vec<&str>,
-    ) -> Result<(), DavLock> {
-        Ok(())
+    ) -> BoxFuture<Result<(), DavLock>> {
+        async { Ok(()) }.boxed()
     }
 
-    fn discover(&self, _path: &DavPath) -> Vec<DavLock> {
-        Vec::new()
+    fn discover(&self, _path: &DavPath) -> BoxFuture<Vec<DavLock>> {
+        async { Vec::new() }.boxed()
     }
 
-    fn delete(&self, _path: &DavPath) -> Result<(), ()> {
-        Ok(())
+    fn delete(&self, _path: &DavPath) -> BoxFuture<Result<(), ()>> {
+        async { Ok(()) }.boxed()
     }
 }

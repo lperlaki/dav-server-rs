@@ -8,6 +8,7 @@
 //! a database, or over the network) we'll need to revisit this.
 //!
 use crate::davpath::DavPath;
+use futures_util::future::BoxFuture;
 use std::fmt::Debug;
 use std::time::{Duration, SystemTime};
 use xmltree::Element;
@@ -37,44 +38,44 @@ pub struct DavLock {
 pub trait DavLockSystem: Debug + Sync + Send + BoxCloneLs {
     /// Lock a node. Returns `Ok(new_lock)` if succeeded,
     /// or `Err(conflicting_lock)` if failed.
-    fn lock(
-        &self,
-        path: &DavPath,
-        principal: Option<&str>,
-        owner: Option<&Element>,
+    fn lock<'a>(
+        &'a self,
+        path: &'a DavPath,
+        principal: Option<&'a str>,
+        owner: Option<&'a Element>,
         timeout: Option<Duration>,
         shared: bool,
         deep: bool,
-    ) -> Result<DavLock, DavLock>;
+    ) -> BoxFuture<'a, Result<DavLock, DavLock>>;
 
     /// Unlock a node. Returns `Ok(())` if succeeded, `Err (())` if failed
     /// (because lock doesn't exist)
-    fn unlock(&self, path: &DavPath, token: &str) -> Result<(), ()>;
+    fn unlock<'a>(&'a self, path: &'a DavPath, token: &'a str) -> BoxFuture<'a, Result<(), ()>>;
 
     /// Refresh lock. Returns updated lock if succeeded.
-    fn refresh(
-        &self,
-        path: &DavPath,
-        token: &str,
+    fn refresh<'a>(
+        &'a self,
+        path: &'a DavPath,
+        token: &'a str,
         timeout: Option<Duration>,
-    ) -> Result<DavLock, ()>;
+    ) -> BoxFuture<'a, Result<DavLock, ()>>;
 
     /// Check if node is locked and if so, if we own all the locks.
     /// If not, returns as Err one conflicting lock.
-    fn check(
-        &self,
-        path: &DavPath,
-        principal: Option<&str>,
+    fn check<'a>(
+        &'a self,
+        path: &'a DavPath,
+        principal: Option<&'a str>,
         ignore_principal: bool,
         deep: bool,
-        submitted_tokens: Vec<&str>,
-    ) -> Result<(), DavLock>;
+        submitted_tokens: Vec<&'a str>,
+    ) -> BoxFuture<'a, Result<(), DavLock>>;
 
     /// Find and return all locks that cover a given path.
-    fn discover(&self, path: &DavPath) -> Vec<DavLock>;
+    fn discover<'a>(&'a self, path: &'a DavPath) -> BoxFuture<'a, Vec<DavLock>>;
 
     /// Delete all locks at this path and below (after MOVE or DELETE)
-    fn delete(&self, path: &DavPath) -> Result<(), ()>;
+    fn delete<'a>(&'a self, path: &'a DavPath) -> BoxFuture<'a, Result<(), ()>>;
 }
 
 #[doc(hidden)]
